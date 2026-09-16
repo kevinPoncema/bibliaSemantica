@@ -42,6 +42,7 @@ def get_search_service(
 def search_verses(
     q: str = Query(..., min_length=2, description="Texto de la consulta (ej. 'amor al prójimo')"),
     limit: int = Query(10, ge=1, le=50, description="Cantidad máxima de resultados a retornar"),
+    offset: int = Query(0, ge=0, description="Cantidad de resultados a omitir (Paginación)"),
     search_service: SearchService = Depends(get_search_service)
 ):
     """
@@ -49,7 +50,7 @@ def search_verses(
     y busca los versículos de la Biblia más similares semánticamente en Qdrant.
     """
     try:
-        results = search_service.search_bible(query=q, limit=limit)
+        results = search_service.search_bible(query=q, limit=limit, offset=offset)
         return SearchResponse(query=q, results=results)
     except Exception as error:
         logger.error(f"Error crítico en la búsqueda vectorial: {error}")

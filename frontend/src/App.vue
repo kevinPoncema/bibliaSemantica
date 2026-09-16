@@ -5,27 +5,49 @@
       <!-- Encabezado -->
       <header class="text-center space-y-2 mt-8">
         <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight text-white">Biblia Semántica</h1>
-        <p class="text-gray-400 text-lg">Busca versículos por su significado o idea, no solo por palabras clave exactas.</p>
+        <p class="text-gray-400 text-lg">Búsqueda Híbrida: Conceptos y palabras clave exactas.</p>
       </header>
 
-      <!-- Barra de Búsqueda -->
-      <form @submit.prevent="search" class="relative group mt-8">
-        <input 
-          v-model="query" 
-          type="text" 
-          placeholder="Ej: Dios cumple sus promesas..." 
-          class="w-full px-6 py-5 rounded-2xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg text-lg transition-all"
-        />
-        <button 
-          type="submit" 
-          class="absolute right-3 top-3 bottom-3 px-8 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="loading || query.length < 2"
-        >
-          Buscar
-        </button>
+      <!-- Barra de Búsqueda y Selector de Límite -->
+      <form @submit.prevent="search(1)" class="relative group mt-8 flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-grow">
+          <input 
+            v-model="query" 
+            type="text" 
+            placeholder="Ej: Nabucodonosor rey de Babilonia..." 
+            class="w-full px-6 py-5 rounded-2xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg text-lg transition-all"
+          />
+          <button 
+            type="submit" 
+            class="absolute right-3 top-3 bottom-3 px-8 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden sm:block"
+            :disabled="loading || query.length < 2"
+          >
+            Buscar
+          </button>
+        </div>
+        
+        <div class="flex gap-2">
+          <select 
+            v-model="limit" 
+            class="px-5 py-4 rounded-xl bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg text-lg appearance-none cursor-pointer"
+          >
+            <option :value="5">5 resultados</option>
+            <option :value="10">10 resultados</option>
+            <option :value="20">20 resultados</option>
+            <option :value="50">50 resultados</option>
+          </select>
+          
+          <button 
+            type="submit" 
+            class="px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:hidden flex-grow"
+            :disabled="loading || query.length < 2"
+          >
+            Buscar
+          </button>
+        </div>
       </form>
 
-      <!-- Estado de Carga (Spinner minimalista) -->
+      <!-- Estado de Carga -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-16 space-y-4 text-gray-400">
         <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         <p class="animate-pulse">Consultando a la Inteligencia Artificial...</p>
@@ -38,7 +60,7 @@
 
       <!-- Resultados (Cards) -->
       <div v-else-if="results.length > 0" class="space-y-4">
-        <p class="text-sm text-gray-400 mb-4 ml-1">Se encontraron {{ results.length }} resultados.</p>
+        <p class="text-sm text-gray-400 mb-4 ml-1">Página {{ currentPage }} - Mostrando hasta {{ limit }} resultados.</p>
         
         <div 
           v-for="(result, index) in results" 
@@ -50,7 +72,6 @@
               {{ result.book }} - {{ result.chapter }}:{{ result.verse }}
             </h3>
             
-            <!-- Etiqueta de Score condicional (solo visible si VITE_DEV_MODE es true) -->
             <span v-if="devMode" class="self-start sm:self-auto text-xs px-3 py-1 bg-gray-900 text-gray-400 border border-gray-700 rounded-full font-mono">
               Score: {{ result.score.toFixed(4) }}
             </span>
@@ -68,6 +89,26 @@
 
           <p class="text-gray-100 leading-relaxed text-lg">"{{ result.text }}"</p>
         </div>
+        
+        <!-- Paginación -->
+        <div class="flex justify-center items-center gap-4 pt-6 pb-12">
+          <button 
+            @click="prevPage" 
+            :disabled="currentPage === 1 || loading"
+            class="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl disabled:opacity-30 disabled:cursor-not-allowed border border-gray-700 transition-colors"
+          >
+            ← Anterior
+          </button>
+          <span class="text-gray-400 font-medium">Página {{ currentPage }}</span>
+          <button 
+            @click="nextPage" 
+            :disabled="!hasNextPage || loading"
+            class="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl disabled:opacity-30 disabled:cursor-not-allowed border border-gray-700 transition-colors"
+          >
+            Siguiente →
+          </button>
+        </div>
+        
       </div>
 
       <!-- Estado Vacío -->
@@ -83,31 +124,40 @@
 import { ref } from 'vue'
 
 const query = ref('')
+const limit = ref(10)
 const results = ref([])
 const loading = ref(false)
 const error = ref(null)
 const searched = ref(false)
 
-// Leer variables de entorno de Vite
-// En Vue 3 + Vite se accede mediante import.meta.env
+// Paginación
+const currentPage = ref(1)
+const hasNextPage = ref(false)
+
 const devMode = import.meta.env.VITE_DEV_MODE === 'true'
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
-const search = async () => {
+const search = async (page = 1) => {
   if (query.value.length < 2) return
   
   loading.value = true
   error.value = null
   searched.value = true
-  results.value = []
+  
+  // Limpiamos los resultados si es una búsqueda nueva (página 1)
+  if (page === 1) {
+    results.value = []
+  }
 
   try {
+    const offset = (page - 1) * limit.value
+    
     const params = new URLSearchParams({
       q: query.value,
-      limit: 5 // límite predeterminado
+      limit: limit.value,
+      offset: offset
     })
     
-    // Petición al backend FastAPI
     const response = await fetch(`${apiUrl}/search?${params.toString()}`, {
       headers: {
         'Accept': 'application/json'
@@ -120,12 +170,32 @@ const search = async () => {
     
     const data = await response.json()
     results.value = data.results
+    currentPage.value = page
+    
+    // Si la API devolvió la misma cantidad de resultados que el límite,
+    // asumimos que probablemente haya una página siguiente.
+    hasNextPage.value = data.results.length === parseInt(limit.value)
+    
+    // Si la API soporta offset, hacer scroll al inicio de los resultados
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     
   } catch (err) {
     console.error("Error realizando la búsqueda vectorial:", err)
-    error.value = "Ocurrió un error al contactar con el buscador. Asegúrate de que el backend de FastAPI esté encendido y sin errores."
+    error.value = "Ocurrió un error al contactar con el buscador. Asegúrate de que el backend esté encendido."
   } finally {
     loading.value = false
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    search(currentPage.value - 1)
+  }
+}
+
+const nextPage = () => {
+  if (hasNextPage.value) {
+    search(currentPage.value + 1)
   }
 }
 </script>

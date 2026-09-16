@@ -34,7 +34,6 @@ class QdrantRepository:
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_string))
             
             meta_copy = meta.copy()
-            meta_copy["text"] = text
             
             # Convertimos el objeto SparseEmbedding de fastembed a models.SparseVector
             sparse_vector = models.SparseVector(
@@ -58,12 +57,14 @@ class QdrantRepository:
             points=points
         )
 
-    def search_hybrid(self, dense_vector: List[float], sparse_vector: Any, limit: int = 10):
+    def search_hybrid(self, dense_vector: List[float], sparse_vector: Any, limit: int = 10, offset: int = 0):
         """Ejecuta una búsqueda híbrida utilizando Prefetch y Reciprocal Rank Fusion (RRF)"""
         qdrant_sparse = models.SparseVector(
             indices=sparse_vector.indices.tolist(),
             values=sparse_vector.values.tolist()
         )
+        
+        prefetch_limit = limit + offset + 20
         
         response = self.client.query_points(
             collection_name=self.collection_name,
@@ -71,16 +72,17 @@ class QdrantRepository:
                 models.Prefetch(
                     query=dense_vector,
                     using="dense",
-                    limit=limit * 2
+                    limit=prefetch_limit
                 ),
                 models.Prefetch(
                     query=models.SparseVector(indices=qdrant_sparse.indices, values=qdrant_sparse.values),
                     using="sparse",
-                    limit=limit * 2
+                    limit=prefetch_limit
                 )
             ],
             query=models.FusionQuery(fusion=models.Fusion.RRF),
             limit=limit,
+            offset=offset,
             with_payload=True
         )
         return response.points

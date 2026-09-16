@@ -50,7 +50,9 @@ def test_search_endpoint_success(monkeypatch):
                 "book": "Test Book",
                 "chapter": "Test Chapter 1",
                 "verse": 1,
-                "text": "Versículo de prueba."
+                "text": "Versículo de prueba.",
+                "heading": "Tema semántico de prueba",
+                "label": "Contexto de prueba"
             }]
             
     # Sobreescribimos la dependencia en FastAPI inyectando el mock
@@ -62,6 +64,7 @@ def test_search_endpoint_success(monkeypatch):
     assert data["query"] == "amor"
     assert len(data["results"]) == 1
     assert data["results"][0]["book"] == "Test Book"
+    assert data["results"][0]["heading"] == "Tema semántico de prueba"
     
     # Limpiamos las dependencias sobreescritas
     app.dependency_overrides.clear()

@@ -63,7 +63,8 @@ def extract_verses_from_data(bible_data: dict) -> Iterator[Tuple[str, Dict[str, 
                         "chapter": chapter_name,
                         "verse": verse_number,
                         "heading": pericopa_actual,
-                        "label": label_actual
+                        "label": label_actual,
+                        "text": texto_versiculo
                     }
                     
                     contexto_ia = f"Libro: {book_name}."
