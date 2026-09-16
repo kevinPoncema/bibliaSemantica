@@ -1,12 +1,14 @@
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 from typing import List, Union
 from fastembed import SparseTextEmbedding
 
 class EmbeddingService:
     def __init__(self, dense_model_name: str = "intfloat/multilingual-e5-small"):
         self.dense_model_name = dense_model_name
+        self.reranker_model_name = "cross-encoder/mmarco-mMiniLMv2-L6-H384-v1"
         self._dense_model = None
         self._sparse_model = None
+        self._reranker = None
 
     @property
     def dense_model(self) -> SentenceTransformer:
@@ -21,6 +23,13 @@ class EmbeddingService:
             print(f"Cargando el modelo SPARSE (BM25): 'Qdrant/bm25'...")
             self._sparse_model = SparseTextEmbedding("Qdrant/bm25")
         return self._sparse_model
+
+    @property
+    def reranker(self) -> CrossEncoder:
+        if self._reranker is None:
+            print(f"Cargando el modelo RERANKER: '{self.reranker_model_name}'...")
+            self._reranker = CrossEncoder(self.reranker_model_name)
+        return self._reranker
 
     def generate_vector(self, text: str) -> List[float]:
         return self.dense_model.encode(text, show_progress_bar=False).tolist()
