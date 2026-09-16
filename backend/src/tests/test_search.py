@@ -1,4 +1,10 @@
 import pytest
+import sys
+import os
+
+# Solucionar el problema de importación del módulo 'src'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from fastapi.testclient import TestClient
 from src.main import app
 
@@ -35,7 +41,7 @@ def test_search_endpoint_success(monkeypatch):
     """
     # Vamos a simular que el SearchService devuelve resultados controlados
     # para no depender de Qdrant en este test unitario/integración rápido.
-    from src.services.search_service import SearchService
+    from src.controllers.search_controller import get_search_service
     
     class MockSearchService:
         def search_bible(self, query, limit):
@@ -47,8 +53,8 @@ def test_search_endpoint_success(monkeypatch):
                 "text": "Versículo de prueba."
             }]
             
-    # Sobreescribimos la dependencia en FastAPI
-    app.dependency_overrides[SearchService] = MockSearchService
+    # Sobreescribimos la dependencia en FastAPI inyectando el mock
+    app.dependency_overrides[get_search_service] = lambda: MockSearchService()
     
     response = client.get("/api/v1/search?q=amor&limit=5")
     assert response.status_code == 200

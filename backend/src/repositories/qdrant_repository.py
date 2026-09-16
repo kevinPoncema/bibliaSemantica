@@ -42,8 +42,9 @@ class QdrantRepository:
 
     def search(self, query_vector: List[float], limit: int = 10):
         """Busca los vectores más similares a la consulta en Qdrant"""
-        return self.client.search(
+        response = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=limit
         )
+        return response.points
