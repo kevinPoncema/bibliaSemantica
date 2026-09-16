@@ -6,11 +6,12 @@ import uuid
 class QdrantRepository:
     def __init__(self, url: str = "http://localhost:6333"):
         self.client = QdrantClient(url=url)
-        self.collection_name = "bible_verses"
+        self.collection_name = "bible_verses_e5"
         self._ensure_collection()
 
     def _ensure_collection(self):
         """Verifica si la colección existe, y si no, la crea con las dimensiones correctas"""
+        # intfloat/multilingual-e5-small produce vectores de dimensión 384
         collections_response = self.client.get_collections()
         exists = any(c.name == self.collection_name for c in collections_response.collections)
         
@@ -25,9 +26,12 @@ class QdrantRepository:
         """Inserta un lote (batch) de versículos con sus embeddings a Qdrant"""
         points = []
         for text, emb, meta in zip(texts, embeddings, metadata):
-            point_id = str(uuid.uuid4())
+            unique_string = f"{meta.get('book')}_{meta.get('chapter')}_{meta.get('verse')}"
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_string))
+            
             meta_copy = meta.copy()
             meta_copy["text"] = text
+            
             points.append(
                 PointStruct(
                     id=point_id,
@@ -35,6 +39,7 @@ class QdrantRepository:
                     payload=meta_copy
                 )
             )
+        
         self.client.upsert(
             collection_name=self.collection_name,
             points=points

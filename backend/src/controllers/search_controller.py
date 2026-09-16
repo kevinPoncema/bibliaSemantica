@@ -18,6 +18,8 @@ class SearchResult(BaseModel):
     chapter: str
     verse: int
     text: str
+    heading: str = ""
+    label: str = ""
 
 class SearchResponse(BaseModel):
     query: str
