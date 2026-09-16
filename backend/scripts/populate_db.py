@@ -113,8 +113,10 @@ def _insert_batch(
     repository: QdrantRepository
 ):
     """Método auxiliar interno para vectorizar un conjunto de textos y guardarlos."""
-    embeddings = embedding_service.generate_vectors_batch(texts)
-    repository.upsert_batch(texts, embeddings, metadata)
+    dense_embeddings = embedding_service.generate_vectors_batch(texts)
+    sparse_embeddings = embedding_service.generate_sparse_vectors_batch(texts)
+    
+    repository.upsert_batch(texts, dense_embeddings, sparse_embeddings, metadata)
 
 def main():
     try:

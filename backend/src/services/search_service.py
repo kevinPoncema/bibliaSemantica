@@ -7,11 +7,16 @@ class SearchService:
         self.qdrant_repository = qdrant_repository
 
     def search_bible(self, query: str, limit: int = 10):
-        # El modelo E5 requiere el prefijo 'query: ' para textos de búsqueda
+        # El modelo E5 requiere el prefijo 'query: ' para textos de búsqueda denso
         query_e5 = f"query: {query}"
+        dense_vector = self.embedding_service.generate_vector(query_e5)
+        sparse_vector = self.embedding_service.generate_sparse_vector(query)
         
-        query_vector = self.embedding_service.generate_vector(query_e5)
-        results = self.qdrant_repository.search(query_vector=query_vector, limit=limit)
+        results = self.qdrant_repository.search_hybrid(
+            dense_vector=dense_vector, 
+            sparse_vector=sparse_vector, 
+            limit=limit
+        )
         return self.formatear_resultado(results)
 
     def formatear_resultado(self, results) -> dict:
