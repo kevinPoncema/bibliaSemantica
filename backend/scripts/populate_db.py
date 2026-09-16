@@ -25,31 +25,57 @@ def load_bible_data(filepath: str) -> dict:
         return json.load(file)
 
 def extract_verses_from_data(bible_data: dict) -> Iterator[Tuple[str, Dict[str, Any]]]:
-    """Generador que extrae secuencialmente el texto de cada versículo y su metadata."""
+    """
+    Generador que extrae versículos, manteniendo en memoria el contexto 
+    de subtítulos (heading1) y etiquetas (label).
+    """
     for book in bible_data.get("books", []):
         book_name = book.get("name")
         
         for chapter in book.get("chapters", []):
             chapter_name = chapter.get("current", {}).get("human", "")
             
+            # Inicializamos la memoria de estado para este capítulo
+            pericopa_actual = ""
+            label_actual = ""
+            
             for item in chapter.get("items", []):
-                # Solo procesamos elementos de tipo 'verse'
-                if item.get("type") == "verse":
+                item_type = item.get("type")
+                
+                # Extraemos el texto crudo del item actual
+                lineas = " ".join(item.get("lines", []))
+                
+                # Lógica de máquina de estados
+                if item_type == "heading1":
+                    pericopa_actual = lineas
+                elif item_type == "label":
+                    label_actual = lineas
+                elif item_type == "verse":
                     verse_nums = item.get("verse_numbers", [])
                     verse_number = verse_nums[0] if verse_nums else 0
                     
-                    text = " ".join(item.get("lines", []))
-                    if not text.strip():
+                    texto_versiculo = lineas
+                    if not texto_versiculo.strip():
                         continue
-                        
+                    
                     metadata = {
                         "book": book_name,
                         "chapter": chapter_name,
-                        "verse": verse_number
+                        "verse": verse_number,
+                        "heading": pericopa_actual,
+                        "label": label_actual
                     }
                     
-                    # Yield retorna un elemento a la vez sin cargar todo en memoria
-                    yield text, metadata
+                    contexto_ia = f"Libro: {book_name}."
+                    if pericopa_actual:
+                        contexto_ia += f" Tema: {pericopa_actual}."
+                    if label_actual:
+                        contexto_ia += f" Contexto: {label_actual}."
+                        
+                    # El prefijo 'passage: ' es OBLIGATORIO para el modelo E5
+                    texto_para_vectorizar = f"passage: {contexto_ia} Texto: {texto_versiculo}"
+                    
+                    yield texto_para_vectorizar, metadata
 
 def process_and_insert_batches(
     verses_iterator: Iterator[Tuple[str, Dict[str, Any]]], 
@@ -67,7 +93,6 @@ def process_and_insert_batches(
         texts_batch.append(text)
         meta_batch.append(metadata)
         
-        # Si el lote se llena, lo procesamos
         if len(texts_batch) >= batch_size:
             _insert_batch(texts_batch, meta_batch, embedding_service, repository)
             total_inserted += len(texts_batch)
@@ -76,7 +101,6 @@ def process_and_insert_batches(
             texts_batch.clear()
             meta_batch.clear()
             
-    # Procesar cualquier elemento sobrante que no completó un lote
     if texts_batch:
         _insert_batch(texts_batch, meta_batch, embedding_service, repository)
         total_inserted += len(texts_batch)
