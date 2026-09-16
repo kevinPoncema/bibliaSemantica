@@ -55,6 +55,17 @@
               Score: {{ result.score.toFixed(4) }}
             </span>
           </div>
+          
+          <!-- Contexto Semántico -->
+          <div v-if="result.heading || result.label" class="mb-3 flex flex-wrap gap-2">
+            <span v-if="result.heading" class="text-xs font-semibold px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded border border-indigo-800/50">
+              Tema: {{ result.heading }}
+            </span>
+            <span v-if="result.label" class="text-xs font-semibold px-2 py-1 bg-teal-900/50 text-teal-300 rounded border border-teal-800/50">
+              Contexto: {{ result.label }}
+            </span>
+          </div>
+
           <p class="text-gray-100 leading-relaxed text-lg">"{{ result.text }}"</p>
         </div>
       </div>
