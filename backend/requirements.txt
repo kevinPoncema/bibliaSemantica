@@ -4,3 +4,6 @@ qdrant-client
 sentence-transformers
 pydantic
 pydantic-settings
+# Para tests
+pytest
+httpx
