@@ -4,6 +4,8 @@ import logging
 logger = logging.getLogger(__name__)
 from typing import List
 from pydantic import BaseModel
+from typing import List, Optional, Union
+from pydantic import BaseModel, Field
 import os
 
 from src.services.search_service import SearchService
@@ -16,7 +18,7 @@ class SearchResult(BaseModel):
     score: float
     book: str
     chapter: str
-    verse: int
+    verse: Union[int, str]
     text: str
     heading: str = ""
     label: str = ""
@@ -57,4 +59,21 @@ def search_verses(
         raise HTTPException(
             status_code=500,
             detail="Error interno del servidor al procesar la búsqueda vectorial."
+        )
+
+@router.get("/search/context", response_model=SearchResponse)
+async def search_verses_context(
+    q: str = Query(..., min_length=2, description="Texto de búsqueda semántica (ej. 'amor al prójimo')"),
+    limit: int = Query(10, ge=1, le=50, description="Cantidad máxima de resultados a retornar"),
+    offset: int = Query(0, ge=0, description="Cantidad de resultados a omitir (Paginación)"),
+    search_service: SearchService = Depends(get_search_service)
+):
+    try:
+        results = search_service.search_bible_context(query=q, limit=limit, offset=offset)
+        return SearchResponse(query=q, results=results)
+    except Exception as error:
+        logger.error(f"Error crítico en la búsqueda de contexto: {error}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error interno al consultar la base de datos vectorial."
         )

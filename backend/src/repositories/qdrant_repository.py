@@ -64,7 +64,9 @@ class QdrantRepository:
             values=sparse_vector.values.tolist()
         )
         
-        prefetch_limit = limit + offset + 20
+        # Límites asimétricos para priorizar fuertemente la IA semántica sobre las palabras clave
+        dense_prefetch_limit = limit + offset + 60
+        sparse_prefetch_limit = limit + offset + 10
         
         response = self.client.query_points(
             collection_name=self.collection_name,
@@ -72,12 +74,12 @@ class QdrantRepository:
                 models.Prefetch(
                     query=dense_vector,
                     using="dense",
-                    limit=prefetch_limit
+                    limit=dense_prefetch_limit
                 ),
                 models.Prefetch(
                     query=models.SparseVector(indices=qdrant_sparse.indices, values=qdrant_sparse.values),
                     using="sparse",
-                    limit=prefetch_limit
+                    limit=sparse_prefetch_limit
                 )
             ],
             query=models.FusionQuery(fusion=models.Fusion.RRF),
@@ -86,6 +88,31 @@ class QdrantRepository:
             with_payload=True
         )
         return response.points
+
+    def get_verses_by_context(self, book: str, chapter: str, heading: str):
+        """Recupera la perícopa entera filtrando por contexto."""
+        conditions = [
+            models.FieldCondition(key="book", match=models.MatchValue(value=book)),
+            models.FieldCondition(key="chapter", match=models.MatchValue(value=chapter))
+        ]
+        
+        if heading:
+            conditions.append(models.FieldCondition(key="heading", match=models.MatchValue(value=heading)))
+        else:
+            conditions.append(models.FieldCondition(key="heading", match=models.MatchValue(value="")))
+
+        filter_obj = models.Filter(must=conditions)
+        
+        response = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=filter_obj,
+            limit=100,
+            with_payload=True
+        )
+        
+        points = response[0]
+        points.sort(key=lambda p: p.payload.get("verse", 0))
+        return points
 
     def search(self, query_vector: List[float], limit: int = 10):
         """Busca los vectores más similares a la consulta en Qdrant"""

@@ -27,14 +27,24 @@
         </div>
         
         <div class="flex gap-2">
+          <!-- Toggle de Búsqueda -->
+          <select 
+            v-model="searchMode"
+            @change="search(1)"
+            class="px-5 py-4 rounded-xl bg-indigo-900 border border-indigo-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg text-lg appearance-none cursor-pointer"
+          >
+            <option value="single">Versículos Sueltos</option>
+            <option value="context">Contexto Completo</option>
+          </select>
+
+          <!-- Límite -->
           <select 
             v-model="limit" 
             class="px-5 py-4 rounded-xl bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg text-lg appearance-none cursor-pointer"
           >
-            <option :value="5">5 resultados</option>
-            <option :value="10">10 resultados</option>
-            <option :value="20">20 resultados</option>
-            <option :value="50">50 resultados</option>
+            <option :value="5">5 res</option>
+            <option :value="10">10 res</option>
+            <option :value="20">20 res</option>
           </select>
           
           <button 
@@ -69,7 +79,7 @@
         >
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
             <h3 class="text-xl font-bold text-blue-400">
-              {{ result.book }} - {{ result.chapter }}:{{ result.verse }}
+              {{ result.chapter }}:{{ result.verse }}
             </h3>
             
             <span v-if="devMode" class="self-start sm:self-auto text-xs px-3 py-1 bg-gray-900 text-gray-400 border border-gray-700 rounded-full font-mono">
@@ -125,6 +135,7 @@ import { ref } from 'vue'
 
 const query = ref('')
 const limit = ref(10)
+const searchMode = ref('single')
 const results = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -144,7 +155,6 @@ const search = async (page = 1) => {
   error.value = null
   searched.value = true
   
-  // Limpiamos los resultados si es una búsqueda nueva (página 1)
   if (page === 1) {
     results.value = []
   }
@@ -158,7 +168,9 @@ const search = async (page = 1) => {
       offset: offset
     })
     
-    const response = await fetch(`${apiUrl}/search?${params.toString()}`, {
+    const endpoint = searchMode.value === 'context' ? '/search/context' : '/search'
+    
+    const response = await fetch(`${apiUrl}${endpoint}?${params.toString()}`, {
       headers: {
         'Accept': 'application/json'
       }
@@ -172,11 +184,8 @@ const search = async (page = 1) => {
     results.value = data.results
     currentPage.value = page
     
-    // Si la API devolvió la misma cantidad de resultados que el límite,
-    // asumimos que probablemente haya una página siguiente.
     hasNextPage.value = data.results.length === parseInt(limit.value)
     
-    // Si la API soporta offset, hacer scroll al inicio de los resultados
     window.scrollTo({ top: 0, behavior: 'smooth' })
     
   } catch (err) {
