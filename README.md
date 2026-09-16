@@ -1,42 +1,38 @@
 # Biblia Semántica
 
-Un buscador semántico minimalista para la Biblia. Permite buscar versículos usando lenguaje natural (embeddings) mediante inteligencia artificial local, sin depender de APIs de terceros.
+Un buscador avanzado para la Biblia que implementa **Búsqueda Híbrida** (Vectores Densos + BM25), permitiendo búsquedas por significado (Inteligencia Artificial) y por palabras clave exactas simultáneamente. Todo de forma local y *open-source*.
 
-## Arquitectura
+## Características Principales
+- **Búsqueda Híbrida (RRF):** Fusión de resultados densos (ideas) y dispersos (léxico) delegados nativamente en Qdrant.
+- **Enriquecimiento Semántico:** Los versículos se indexan junto a sus subtítulos (`heading1`) y contexto (`label`) para que la IA comprenda la escena completa y no pierda sentido.
+- **Modelos Asimétricos (E5):** Uso de `intfloat/multilingual-e5-small`, diferenciando matemáticamente las "consultas" de los "pasajes".
+- **Inserción Idempotente:** Hashes UUID v5 deterministas que evitan la duplicación de versículos en la base de datos en caso de reinicios.
+- **Interfaz Moderna:** Vue 3 + Tailwind CSS v4.
 
+Para los detalles técnicos y el porqué de cada decisión, consulta la carpeta `/docs`.
+
+## Arquitectura Básica
 - **Backend:** FastAPI (Python)
 - **Base de Datos Vectorial:** Qdrant
-- **Modelo de NLP (Embeddings):** `paraphrase-multilingual-MiniLM-L12-v2` (Sentence-Transformers)
-- **Frontend:** Vue 3 + Tailwind CSS
-- **Infraestructura:** Docker & Docker Compose
-
-## Requisitos
-
-- Docker y Docker Compose
-- (Opcional) Python 3.11 para ejecución local sin Docker
+- **Modelos de IA:** `intfloat/multilingual-e5-small` (Denso) y `Qdrant/bm25` (Disperso/Sparse) a través de `fastembed`.
+- **Frontend:** Vue 3 + Vite
 
 ## Instalación y Ejecución
 
-1. Clona este repositorio.
-2. Levanta la infraestructura usando Docker Compose:
+1. Clona este repositorio y levanta la infraestructura:
    ```bash
    docker compose up -d --build
    ```
-3. La primera vez, necesitas poblar la base de datos con los versículos:
+2. La primera vez, necesitas poblar la base de datos (se descargarán los modelos y se procesará el texto por lotes):
    ```bash
    docker compose exec backend python scripts/populate_db.py
    ```
-   *(Este proceso descargará el modelo de lenguaje y procesará el texto por lotes. Puede tardar un par de minutos).*
+3. Accede a los servicios:
+   - **Frontend UI:** [http://localhost:5173](http://localhost:5173)
+   - **Backend API (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **Qdrant DB (Dashboard):** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
-4. Accede a los servicios:
-   - **Frontend (UI de Búsqueda):** [http://localhost:5173](http://localhost:5173)
-   - **Backend (API & Documentación Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **Qdrant (Panel de control DB):** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
-
-## Modo Desarrollo (Frontend)
-
-El frontend está configurado para leer la variable de entorno `VITE_DEV_MODE`. Si está en `true`, se mostrará el *score* de similitud (de 0 a 1) en cada resultado devuelto, útil para afinar las búsquedas. En producción, puedes ponerlo en `false` para ocultarlo y tener una interfaz más limpia.
-
-## Endpoints Principales
-
-- `GET /api/v1/search?q={consulta}&limit={n}`: Busca versículos similares al texto proporcionado.
+## Documentación
+Lee la documentación detallada para entender la lógica interna:
+- [Arquitectura del Sistema](docs/arquitectura.md)
+- [Proceso de Embeddings y Búsqueda](docs/embeddings_y_busqueda.md)
